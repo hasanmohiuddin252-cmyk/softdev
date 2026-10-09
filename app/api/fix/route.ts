@@ -3,6 +3,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { VulnerabilityFindingSchema, FixOutputSchema } from "@/lib/ai/schema";
 import { escapeXmlText } from "@/lib/ai/prompts";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authSession";
 
 const maxCodeLength = 100_000;
 
@@ -43,6 +44,8 @@ Return the entire updated source file in the fixedCode field. Do not return a di
 }
 
 export async function POST(request: Request) {
+  if (!(await getAuthenticatedUserId())) return unauthorizedResponse();
+
   let payload: unknown;
   try {
     payload = await request.json();

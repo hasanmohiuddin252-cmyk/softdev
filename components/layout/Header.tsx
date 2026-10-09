@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, type FormEvent } from "react";
-import { ArrowUpRight, GitBranch, LoaderCircle, ShieldCheck, Upload } from "lucide-react";
+import { signOut } from "next-auth/react";
+import { ArrowUpRight, GitBranch, GitFork, LoaderCircle, ShieldCheck, Upload } from "lucide-react";
 import { ThemeToggle, type Theme } from "@/components/layout/ThemeToggle";
 
 interface HeaderProps {
+  githubLogin: string;
   repositoryUrl: string;
   isLoading: boolean;
   theme: Theme;
@@ -15,6 +17,7 @@ interface HeaderProps {
 }
 
 export function Header({
+  githubLogin,
   repositoryUrl,
   isLoading,
   theme,
@@ -67,6 +70,10 @@ export function Header({
       </form>
 
       <div className="header-actions">
+        <span className="account-label" title={`Signed in as ${githubLogin}`}>
+          <GitFork aria-hidden="true" size={13} />
+          {githubLogin}
+        </span>
         <input
           ref={fileInputRef}
           accept="text/*,.c,.cpp,.cs,.go,.h,.hpp,.java,.js,.jsx,.md,.php,.py,.rb,.rs,.sh,.sql,.ts,.tsx,.xml,.yaml,.yml"
@@ -88,6 +95,13 @@ export function Header({
           <span>Open files</span>
         </button>
         <ThemeToggle onToggle={onToggleTheme} theme={theme} />
+        <button
+          className="button"
+          onClick={() => void signOut({ callbackUrl: "/sign-in" })}
+          type="button"
+        >
+          Sign out
+        </button>
       </div>
     </header>
   );

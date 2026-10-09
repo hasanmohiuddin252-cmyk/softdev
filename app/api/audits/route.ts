@@ -1,11 +1,15 @@
 import { z } from "zod";
 import { listAuditReports } from "@/lib/auditHistory";
 import { DatabaseNotConfiguredError } from "@/lib/db";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authSession";
 
 const defaultLimit = 25;
 const maximumLimit = 100;
 
 export async function GET(request: Request) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return unauthorizedResponse();
+
   if (!process.env.DATABASE_URL) {
     return Response.json(
       { error: "Audit history is not configured. Set DATABASE_URL on the server." },
@@ -26,7 +30,7 @@ export async function GET(request: Request) {
   const limit = Math.min(parsedLimit.data, maximumLimit);
 
   try {
-    const reports = await listAuditReports(limit);
+    const reports = await listAuditReports(userId, limit);
     return Response.json({ reports });
   } catch (error) {
     console.error("Could not load audit history:", error);

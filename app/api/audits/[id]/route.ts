@@ -1,5 +1,6 @@
 import { getAuditReport } from "@/lib/auditHistory";
 import { DatabaseNotConfiguredError } from "@/lib/db";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authSession";
 
 const maximumPostgresBigint = "9223372036854775807";
 
@@ -7,6 +8,9 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return unauthorizedResponse();
+
   if (!process.env.DATABASE_URL) {
     return Response.json(
       { error: "Audit history is not configured. Set DATABASE_URL on the server." },
@@ -24,7 +28,7 @@ export async function GET(
   }
 
   try {
-    const report = await getAuditReport(id);
+    const report = await getAuditReport(userId, id);
     if (!report) {
       return Response.json({ error: "Audit report not found." }, { status: 404 });
     }

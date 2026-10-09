@@ -1,8 +1,11 @@
 import { createGitHubClient } from "@/lib/github/client";
 import { getGitHubRouteError } from "@/lib/github/errors";
 import { GitHubUrlError, parseGitHubUrl } from "@/lib/github/parseUrl";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authSession";
 
 export async function POST(request: Request) {
+  if (!(await getAuthenticatedUserId())) return unauthorizedResponse();
+
   let payload: unknown;
 
   try {

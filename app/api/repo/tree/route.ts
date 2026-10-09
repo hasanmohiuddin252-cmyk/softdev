@@ -1,8 +1,11 @@
 import { createGitHubClient } from "@/lib/github/client";
 import { getGitHubRouteError } from "@/lib/github/errors";
 import { GitHubUrlError, parseGitHubUrl } from "@/lib/github/parseUrl";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authSession";
 
 export async function GET(request: Request) {
+  if (!(await getAuthenticatedUserId())) return unauthorizedResponse();
+
   const requestedUrl = new URL(request.url).searchParams.get("url");
   if (!requestedUrl) {
     return Response.json({ error: "Provide a GitHub repository URL." }, { status: 400 });

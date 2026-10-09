@@ -9,6 +9,7 @@ import {
 import { buildAuditPrompt } from "@/lib/ai/prompts";
 import { saveAuditReport } from "@/lib/auditHistory";
 import { DatabaseNotConfiguredError, getDatabasePool } from "@/lib/db";
+import { getAuthenticatedUserId, unauthorizedResponse } from "@/lib/authSession";
 
 const AuditRequestSchema = z
   .object({
@@ -61,6 +62,9 @@ function buildAuditOutput(
 }
 
 export async function POST(request: Request) {
+  const userId = await getAuthenticatedUserId();
+  if (!userId) return unauthorizedResponse();
+
   let payload: unknown;
 
   try {
@@ -169,6 +173,7 @@ export async function POST(request: Request) {
   const audit = buildAuditOutput(vulnerabilities);
   try {
     const report = await saveAuditReport({
+      userId,
       fileName: input.data.fileName,
       language: input.data.language,
       sourceType: input.data.sourceType,

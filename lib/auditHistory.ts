@@ -54,6 +54,7 @@ function mapReportRow(row: AuditReportRow): AuditHistoryItem {
 }
 
 export async function saveAuditReport(input: {
+  userId: string;
   fileName: string;
   language: string;
   sourceType: "github" | "local";
@@ -66,15 +67,16 @@ export async function saveAuditReport(input: {
     await client.query("BEGIN");
     const { rows } = await client.query<AuditReportRow>(
       `INSERT INTO audit_reports (
-         file_name, language, source_type, total_issues,
+         user_id, file_name, language, source_type, total_issues,
          critical_count, high_count, medium_count, low_count,
          info_count, security_score
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id, file_name, language, source_type, total_issues,
          critical_count, high_count, medium_count, low_count,
          info_count, security_score, created_at`,
       [
+        input.userId,
         input.fileName,
         input.language,
         input.sourceType,
@@ -140,20 +142,25 @@ async function insertFinding(
   );
 }
 
-export async function listAuditReports(limit: number): Promise<AuditHistoryItem[]> {
+export async function listAuditReports(
+  userId: string,
+  limit: number,
+): Promise<AuditHistoryItem[]> {
   const { rows } = await getDatabasePool().query<AuditReportRow>(
     `SELECT id::text, file_name, language, source_type, total_issues,
        critical_count, high_count, medium_count, low_count,
        info_count, security_score, created_at
      FROM audit_reports
+     WHERE user_id = $1
      ORDER BY created_at DESC, id DESC
-     LIMIT $1`,
-    [limit],
+     LIMIT $2`,
+    [userId, limit],
   );
   return rows.map(mapReportRow);
 }
 
 export async function getAuditReport(
+  userId: string,
   id: string,
 ): Promise<StoredAuditReport | null> {
   const pool = getDatabasePool();
@@ -162,8 +169,8 @@ export async function getAuditReport(
        critical_count, high_count, medium_count, low_count,
        info_count, security_score, created_at
      FROM audit_reports
-     WHERE id = $1`,
-    [id],
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId],
   );
 
   if (reportResult.rowCount === 0) return null;

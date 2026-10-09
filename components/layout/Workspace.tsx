@@ -101,7 +101,7 @@ function isFileResponse(value: unknown): value is { content: string } {
   return isRecord(value) && typeof value.content === "string";
 }
 
-export function Workspace() {
+export function Workspace({ githubLogin }: { githubLogin: string }) {
   const [repositoryUrl, setRepositoryUrl] = useState("");
   const [repository, setRepository] = useState<RepositoryTree | null>(null);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
@@ -517,6 +517,7 @@ export function Workspace() {
       onDrop={handleDrop}
     >
       <Header
+        githubLogin={githubLogin}
         isLoading={isLoadingRepository}
         onFilesSelected={(files) => void loadLocalFiles(files)}
         onLoadRepository={() => void loadRepository()}
