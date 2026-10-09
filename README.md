@@ -81,3 +81,5 @@ npm run lint
 npx tsc --noEmit
 npm run build
 ```
+
+See [TEST_CASES.md](./TEST_CASES.md) for the complete manual, API, integration, and release test checklist.
