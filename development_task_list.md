@@ -4,8 +4,8 @@
 This task list is derived from the implementation plan for the AI Code Review & Security Auditor Dashboard. It is organized into phases with clear dependencies so development can proceed in a predictable order.
 
 ## Ready to Start
-- [ ] Project Prerequisites — Initialize the Next.js + TypeScript app and install dependencies
-- [ ] Environment Configuration — Set up `.env.local` and required secrets for the app
+- [x] Project Prerequisites — Initialize the Next.js + TypeScript app and install dependencies
+- [x] Environment Configuration — Add a safe `.env.example` and document optional local secrets
 - [ ] AI Schema Definition — Create Zod models for structured audit findings and validation
 - [ ] Global Audit State — Implement the Zustand store for editor and findings state
 - [ ] Fix API — Build the AI remediation patch generation endpoint
@@ -13,28 +13,28 @@ This task list is derived from the implementation plan for the AI Code Review & 
 ## Development Phases
 
 ### Phase 1: Base Application & Monaco Integration
-- [ ] 1. Project Prerequisites
+- [x] 1. Project Prerequisites
   - Initialize the Next.js app with TypeScript and Tailwind
   - Install required packages: `@monaco-editor/react`, `zod`, `openai`, `@anthropic-ai/sdk`, `@octokit/rest`, `zustand`, `lucide-react`, `clsx`, and `tailwind-merge`
   - Verify the project boots cleanly
   - Depends on: none
 
-- [ ] 2. Environment Configuration
-  - Create `.env.local` with OpenAI, Anthropic, GitHub, and optional Redis variables
-  - Document environment setup for local development
+- [x] 2. Environment Configuration
+  - Add `.env.example` with variable names only; keep actual credentials in ignored `.env.local`
+  - Document environment setup and clarify which Phase 1 variables are optional
   - Depends on: none
 
-- [ ] 3. Workspace Layout
+- [x] 3. Workspace Layout
   - Create the split-pane layout with editor on the left and audit dashboard on the right
   - Add header, status bar, and responsive shell
   - Depends on: Project Prerequisites
 
-- [ ] 4. Monaco Editor Integration
+- [x] 4. Monaco Editor Integration
   - Add Monaco editor with dark theme, line numbers, and layout configuration
   - Prepare hooks for highlighting, scrolling, and editor selection
   - Depends on: Project Prerequisites, Workspace Layout
 
-- [ ] 5. Repository & File Ingestion
+- [x] 5. Repository & File Ingestion
   - Support GitHub URL input and public repo file fetching
   - Implement file-loading routes and ingestion flow
   - Depends on: Project Prerequisites, Environment Configuration
