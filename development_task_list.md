@@ -40,17 +40,17 @@ This task list is derived from the implementation plan for the AI Code Review & 
   - Depends on: Project Prerequisites, Environment Configuration
 
 ### Phase 2: Backend LLM & Structured Schema Setup
-- [ ] 6. AI Schema Definition
+- [x] 6. AI Schema Definition
   - Define Zod models for vulnerability findings and audit outputs
   - Enforce strong validation for structured LLM responses
   - Depends on: none
 
-- [ ] 7. Audit Prompt Layer
+- [x] 7. Audit Prompt Layer
   - Build XML-wrapped prompts for code security reviews
   - Define scoring and OWASP-based instructions
   - Depends on: AI Schema Definition
 
-- [ ] 8. Audit API Endpoint
+- [x] 8. Audit API Endpoint
   - Create `POST /api/audit` to call the LLM and validate structured output
   - Return normalized audit results to the frontend
   - Depends on: AI Schema Definition, Audit Prompt Layer, Environment Configuration

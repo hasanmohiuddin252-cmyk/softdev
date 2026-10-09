@@ -29,7 +29,9 @@ npm run dev
 On macOS or Linux, use `cp .env.example .env.local` instead of `Copy-Item`.
 The app runs at [http://localhost:3000](http://localhost:3000).
 
-Set `GITHUB_TOKEN` in `.env.local` if you want a higher GitHub API rate limit. Public repositories can be loaded without it. OpenAI and Anthropic keys are only needed in later phases and are not used by the Phase 1 app.
+Set `GITHUB_TOKEN` in `.env.local` if you want a higher GitHub API rate limit. Public repositories can be loaded without it. Set `OPENAI_API_KEY` to enable the Phase 2 `POST /api/audit` endpoint. Keep it server-side; the application does not expose it to the browser. Anthropic integration is not enabled yet.
+
+The audit endpoint accepts JSON with `fileName`, `language`, and `code` fields. It returns a validated findings list and calculates the summary counts and score server-side. Requests without an OpenAI key return a clear `503` response.
 
 ## Loading code
 
