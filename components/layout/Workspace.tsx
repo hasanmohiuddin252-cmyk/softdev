@@ -16,6 +16,10 @@ import { Header } from "@/components/layout/Header";
 import { SplitPaneLayout } from "@/components/layout/SplitPaneLayout";
 import { StatusBar } from "@/components/layout/StatusBar";
 import type { Theme } from "@/components/layout/ThemeToggle";
+import {
+  StoredAuditReportSchema,
+  type StoredAuditReport,
+} from "@/lib/ai/schema";
 import { languageFromFileName } from "@/lib/files";
 import { githubFileUrl, GitHubUrlError, parseGitHubUrl } from "@/lib/github/parseUrl";
 import type {
@@ -114,6 +118,10 @@ export function Workspace() {
   );
   const [editorWidth, setEditorWidth] = useState(63);
   const [isLoadingRepository, setIsLoadingRepository] = useState(false);
+  const [isRunningAudit, setIsRunningAudit] = useState(false);
+  const [auditRefreshToken, setAuditRefreshToken] = useState(0);
+  const [latestAuditReport, setLatestAuditReport] =
+    useState<StoredAuditReport | null>(null);
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string } | null>(
     null,
@@ -158,7 +166,54 @@ export function Workspace() {
     setActiveFile(file);
     setCode(content);
     setSavedCode(content);
+    setLatestAuditReport(null);
     setNotice(null);
+  }
+
+  async function runAudit() {
+    if (!activeFile) {
+      setNotice({ kind: "error", message: "Load a source file before starting an audit." });
+      return;
+    }
+
+    setIsRunningAudit(true);
+    setNotice(null);
+
+    try {
+      const response = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: activeFile.name,
+          language: activeFile.language,
+          code,
+          sourceType: activeFile.source,
+        }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          getApiError(payload) ?? `The audit request failed with status ${response.status}.`,
+        );
+      }
+
+      const parsedReport = StoredAuditReportSchema.safeParse(payload);
+      if (!parsedReport.success) {
+        throw new Error("The audit service returned an invalid report.");
+      }
+
+      setLatestAuditReport(parsedReport.data);
+      setAuditRefreshToken((current) => current + 1);
+      setNotice({ kind: "info", message: "Audit completed and saved to history." });
+    } catch (error) {
+      console.error("Could not run the security audit:", error);
+      setNotice({
+        kind: "error",
+        message: error instanceof Error ? error.message : "Could not run the security audit.",
+      });
+    } finally {
+      setIsRunningAudit(false);
+    }
   }
 
   async function loadRepositoryFile(
@@ -362,7 +417,18 @@ export function Workspace() {
       ) : null}
 
       <SplitPaneLayout
-        dashboard={<AuditPanel />}
+        dashboard={
+          <AuditPanel
+            key={latestAuditReport?.id ?? "audit-dashboard"}
+            code={code}
+            fileName={activeFile?.name ?? null}
+            isRunning={isRunningAudit}
+            language={activeFile?.language ?? "plaintext"}
+            latestReport={latestAuditReport}
+            onRunAudit={() => void runAudit()}
+            refreshToken={auditRefreshToken}
+          />
+        }
         editorWidth={editorWidth}
         onEditorWidthChange={setEditorWidth}
         editor={

@@ -40,6 +40,23 @@ export const AuditOutputSchema = z
   })
   .strict();
 
+export const AuditHistoryItemSchema = z
+  .object({
+    id: z.string().min(1),
+    fileName: z.string(),
+    language: z.string(),
+    sourceType: z.enum(["github", "local"]),
+    summary: AuditOutputSchema.shape.summary,
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+
+export const StoredAuditReportSchema = AuditHistoryItemSchema.extend({
+  vulnerabilities: z.array(VulnerabilityFindingSchema),
+}).strict();
+
 export type AuditFindings = z.infer<typeof AuditFindingsSchema>;
+export type AuditHistoryItem = z.infer<typeof AuditHistoryItemSchema>;
 export type AuditOutput = z.infer<typeof AuditOutputSchema>;
+export type StoredAuditReport = z.infer<typeof StoredAuditReportSchema>;
 export type VulnerabilityFinding = z.infer<typeof VulnerabilityFindingSchema>;

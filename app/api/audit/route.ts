@@ -1,14 +1,21 @@
 import OpenAI, { APIError } from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
-import { AuditFindingsSchema, AuditOutputSchema } from "@/lib/ai/schema";
+import {
+  AuditFindingsSchema,
+  AuditOutputSchema,
+  StoredAuditReportSchema,
+} from "@/lib/ai/schema";
 import { buildAuditPrompt } from "@/lib/ai/prompts";
+import { saveAuditReport } from "@/lib/auditHistory";
+import { DatabaseNotConfiguredError, getDatabasePool } from "@/lib/db";
 
 const AuditRequestSchema = z
   .object({
     fileName: z.string().trim().min(1).max(256),
     language: z.string().trim().min(1).max(64),
     code: z.string().min(1).max(100_000),
+    sourceType: z.enum(["github", "local"]).optional().default("local"),
   })
   .strict();
 
@@ -83,8 +90,26 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!process.env.DATABASE_URL) {
+    return Response.json(
+      { error: "The audit history database is not configured. Set DATABASE_URL on the server." },
+      { status: 503 },
+    );
+  }
+
+  try {
+    await getDatabasePool().query("SELECT 1");
+  } catch (error) {
+    console.error("Audit database connection failed:", error);
+    return Response.json(
+      { error: "The audit database is unavailable. Check DATABASE_URL and database connectivity." },
+      { status: 503 },
+    );
+  }
+
   const lineCount = input.data.code.split(/\r\n|\r|\n/).length;
 
+  let vulnerabilities;
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const completion = await openai.chat.completions.parse({
@@ -124,7 +149,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return Response.json(buildAuditOutput(message.parsed.vulnerabilities));
+    vulnerabilities = message.parsed.vulnerabilities;
   } catch (error) {
     console.error("Audit Engine Error:", error);
 
@@ -139,5 +164,28 @@ export async function POST(request: Request) {
       { error: "The security audit failed. Check the server configuration and try again." },
       { status: 502 },
     );
+  }
+
+  const audit = buildAuditOutput(vulnerabilities);
+  try {
+    const report = await saveAuditReport({
+      fileName: input.data.fileName,
+      language: input.data.language,
+      sourceType: input.data.sourceType,
+      audit,
+    });
+    return Response.json(
+      StoredAuditReportSchema.parse({
+        ...report,
+        vulnerabilities: audit.vulnerabilities,
+      }),
+    );
+  } catch (error) {
+    console.error("Could not persist the completed audit report:", error);
+    const message =
+      error instanceof DatabaseNotConfiguredError
+        ? error.message
+        : "The audit completed, but the report could not be saved. Check database connectivity and try again.";
+    return Response.json({ error: message }, { status: 503 });
   }
 }

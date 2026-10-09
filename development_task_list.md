@@ -55,6 +55,12 @@ This task list is derived from the implementation plan for the AI Code Review & 
   - Return normalized audit results to the frontend
   - Depends on: AI Schema Definition, Audit Prompt Layer, Environment Configuration
 
+- [x] PostgreSQL Audit History
+  - Add transactional migrations and store report metadata and findings
+  - Never persist submitted source code or code snippets
+  - Add API endpoints and dashboard history browsing for saved reports
+  - Depends on: Audit API Endpoint
+
 ### Phase 3: Dashboard UI & Monaco Synchronization
 - [ ] 9. Global Audit State
   - Implement Zustand state for file content, findings, filters, and selected issue
