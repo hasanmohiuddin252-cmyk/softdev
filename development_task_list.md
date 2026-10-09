@@ -6,9 +6,9 @@ This task list is derived from the implementation plan for the AI Code Review & 
 ## Ready to Start
 - [x] Project Prerequisites — Initialize the Next.js + TypeScript app and install dependencies
 - [x] Environment Configuration — Add a safe `.env.example` and document optional local secrets
-- [ ] AI Schema Definition — Create Zod models for structured audit findings and validation
-- [ ] Global Audit State — Implement the Zustand store for editor and findings state
-- [ ] Fix API — Build the AI remediation patch generation endpoint
+- [x] AI Schema Definition — Create Zod models for structured audit findings and validation
+- [x] Global Audit State — Implement the Zustand store for editor and findings state
+- [x] Fix API — Build the AI remediation patch generation endpoint
 
 ## Development Phases
 
@@ -62,32 +62,33 @@ This task list is derived from the implementation plan for the AI Code Review & 
   - Depends on: Audit API Endpoint
 
 ### Phase 3: Dashboard UI & Monaco Synchronization
-- [ ] 9. Global Audit State
+- [x] 9. Global Audit State
   - Implement Zustand state for file content, findings, filters, and selected issue
   - Support synchronized editor and dashboard state updates
   - Depends on: none
 
-- [ ] 10. Vulnerability Highlighting
+- [x] 10. Vulnerability Highlighting
   - Add Monaco gutter markers and background highlights by severity
   - Enable clicking cards to scroll to relevant lines in the editor
   - Depends on: Monaco Editor Integration, Global Audit State
 
 ### Phase 4: AI Remediation Engine & Diff Viewer
-- [ ] 11. Fix API
+- [x] 11. Fix API
   - Create `POST /api/fix` to patch a specific vulnerability in the current file
   - Return a secure code patch or fixed file content
   - Depends on: none
 
-- [ ] 12. Diff Review Modal
+- [x] 12. Diff Review Modal
   - Add a side-by-side diff viewer for original vs. AI-remediated code
   - Include accept and discard controls
   - Depends on: Fix API
 
 ### Phase 5: Testing & Quality Assurance
-- [ ] 13. QA Validation
+- [x] 13. QA Validation
   - Run the end-to-end checklist for audit API, Monaco highlights, and line-number accuracy
   - Validate sample vulnerable code execution and patch flow
   - Confirm the implementation is ready to use
+  - Browser workflow and API validation tested; live OpenAI and PostgreSQL integration require local service credentials
   - Depends on: Repository & File Ingestion, Audit API Endpoint, Vulnerability Highlighting, Diff Review Modal
 
 ## Dependency Summary

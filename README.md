@@ -8,6 +8,8 @@ Sentinel is a Next.js workspace for loading source code from GitHub or local fil
 - Local file selection and drag-and-drop (up to 5 MB per file).
 - Public GitHub repository browsing and file loading.
 - Structured OpenAI security audits with validated findings and scoring.
+- Severity-filtered findings synchronized with Monaco line highlights and navigation.
+- AI-generated remediation suggestions reviewed in a side-by-side diff before applying.
 - PostgreSQL audit history for finding details and file metadata.
 
 ## Requirements
@@ -57,11 +59,20 @@ Audit history is currently shared by anyone with access to the application becau
 ## API
 
 - `POST /api/audit` — accepts `{ "fileName": "...", "language": "...", "code": "...", "sourceType": "local" | "github" }`; returns a saved report.
+- `POST /api/fix` — accepts the current file and a validated finding; returns a proposed complete-file patch. It never writes code to PostgreSQL.
 - `GET /api/audits?limit=25` — lists recent reports (maximum 100).
 - `GET /api/audits/{id}` — returns a report and its findings. Stored history omits code snippets.
 - `GET /api/repo/tree` and `POST /api/repo/file` — load public GitHub repository files.
 
 The audit endpoint returns a clear `503` when `OPENAI_API_KEY`, `DATABASE_URL`, the migration, or database connectivity is missing.
+
+Findings from the currently open, unchanged source file can be selected to navigate to their reported lines. Editing or switching files clears those live highlights; historical reports remain viewable but do not navigate into source that was not saved.
+
+For a live finding, choose **Suggest secure fix** to request a proposed patch. Review it in the side-by-side diff before applying; accepting updates the editor only and does not save or commit the file automatically. Re-run the audit after applying a patch. The remediation endpoint requires `OPENAI_API_KEY`, but does not require the database.
+
+## QA status
+
+Lint, TypeScript, and production build checks pass. The audit-to-fix editor flow, severity filtering, finding navigation, and patch accept/discard behavior have been exercised in the browser with mocked API responses. API input validation and missing-configuration responses have also been checked. A live OpenAI call and PostgreSQL migration/read-write test remain unverified until valid private provider credentials and a PostgreSQL instance are configured.
 
 ## Quality checks
 

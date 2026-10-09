@@ -1,4 +1,4 @@
-function escapeXmlText(value: string): string {
+export function escapeXmlText(value: string): string {
   return value
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")

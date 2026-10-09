@@ -10,6 +10,7 @@ import {
 import type { editor } from "monaco-editor";
 import { AlertCircle, Braces, FileCode2, LoaderCircle } from "lucide-react";
 import { CodeViewer } from "@/components/editor/CodeViewer";
+import { DiffViewerModal } from "@/components/editor/DiffViewerModal";
 import { FileTree } from "@/components/editor/FileTree";
 import { AuditPanel } from "@/components/dashboard/AuditPanel";
 import { Header } from "@/components/layout/Header";
@@ -19,7 +20,9 @@ import type { Theme } from "@/components/layout/ThemeToggle";
 import {
   StoredAuditReportSchema,
   type StoredAuditReport,
+  type VulnerabilityFinding,
 } from "@/lib/ai/schema";
+import { useAuditStore, welcomeCode } from "@/lib/state/auditStore";
 import { languageFromFileName } from "@/lib/files";
 import { githubFileUrl, GitHubUrlError, parseGitHubUrl } from "@/lib/github/parseUrl";
 import type {
@@ -28,12 +31,6 @@ import type {
   WorkspaceFile,
 } from "@/types/repository";
 
-const welcomeCode = `export function greet(name: string) {
-  return \`Hello, \${name}!\`;
-}
-
-console.log(greet("developer"));
-`;
 const localFileLimit = 5 * 1024 * 1024;
 
 interface LocalFile {
@@ -109,7 +106,13 @@ export function Workspace() {
   const [repository, setRepository] = useState<RepositoryTree | null>(null);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [activeFile, setActiveFile] = useState<WorkspaceFile | null>(null);
-  const [code, setCode] = useState(welcomeCode);
+  const code = useAuditStore((state) => state.code);
+  const setCode = useAuditStore((state) => state.setCode);
+  const setFindings = useAuditStore((state) => state.setFindings);
+  const clearFindings = useAuditStore((state) => state.clearFindings);
+  const findings = useAuditStore((state) => state.findings);
+  const selectedIssueIndex = useAuditStore((state) => state.selectedIssueIndex);
+  const severityFilter = useAuditStore((state) => state.severityFilter);
   const [savedCode, setSavedCode] = useState(welcomeCode);
   const theme = useSyncExternalStore<Theme>(
     subscribeToTheme,
@@ -122,6 +125,14 @@ export function Workspace() {
   const [auditRefreshToken, setAuditRefreshToken] = useState(0);
   const [latestAuditReport, setLatestAuditReport] =
     useState<StoredAuditReport | null>(null);
+  const [patchReview, setPatchReview] = useState<{
+    originalCode: string;
+    modifiedCode: string;
+    filePath: string;
+    language: string;
+  } | null>(null);
+  const [isPatchReviewOpen, setIsPatchReviewOpen] = useState(false);
+  const [isGeneratingFix, setIsGeneratingFix] = useState(false);
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ kind: "error" | "info"; message: string } | null>(
     null,
@@ -129,6 +140,11 @@ export function Workspace() {
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const dragDepth = useRef(0);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const activeFileRef = useRef<WorkspaceFile | null>(activeFile);
+
+  useEffect(() => {
+    activeFileRef.current = activeFile;
+  }, [activeFile]);
 
   useEffect(() => {
     try {
@@ -163,7 +179,9 @@ export function Workspace() {
   }
 
   function activateFile(file: WorkspaceFile, content: string) {
+    setIsPatchReviewOpen(false);
     setActiveFile(file);
+    clearFindings();
     setCode(content);
     setSavedCode(content);
     setLatestAuditReport(null);
@@ -176,6 +194,7 @@ export function Workspace() {
       return;
     }
 
+    const auditedCode = code;
     setIsRunningAudit(true);
     setNotice(null);
 
@@ -186,7 +205,7 @@ export function Workspace() {
         body: JSON.stringify({
           fileName: activeFile.name,
           language: activeFile.language,
-          code,
+          code: auditedCode,
           sourceType: activeFile.source,
         }),
       });
@@ -203,8 +222,20 @@ export function Workspace() {
       }
 
       setLatestAuditReport(parsedReport.data);
+      const editorStillMatchesAudit = useAuditStore.getState().code === auditedCode;
+      if (editorStillMatchesAudit) {
+        setFindings(
+          parsedReport.data.id,
+          parsedReport.data.vulnerabilities,
+        );
+      }
       setAuditRefreshToken((current) => current + 1);
-      setNotice({ kind: "info", message: "Audit completed and saved to history." });
+      setNotice({
+        kind: "info",
+        message: editorStillMatchesAudit
+          ? "Audit completed and saved to history."
+          : "Audit completed and saved, but the editor changed during the audit. Findings are not linked to the current code.",
+      });
     } catch (error) {
       console.error("Could not run the security audit:", error);
       setNotice({
@@ -214,6 +245,95 @@ export function Workspace() {
     } finally {
       setIsRunningAudit(false);
     }
+  }
+
+  async function requestFix(finding: VulnerabilityFinding) {
+    if (!activeFile) {
+      setNotice({ kind: "error", message: "Load the source file before requesting a fix." });
+      return;
+    }
+
+    const originalCode = code;
+    const filePath = activeFile.path;
+    setIsGeneratingFix(true);
+    setNotice(null);
+
+    try {
+      const response = await fetch("/api/fix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: activeFile.name,
+          language: activeFile.language,
+          code: originalCode,
+          vulnerability: finding,
+        }),
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          getApiError(payload) ?? `The remediation request failed with status ${response.status}.`,
+        );
+      }
+
+      if (
+        !isRecord(payload) ||
+        typeof payload.fixedCode !== "string" ||
+        payload.fixedCode.trim().length === 0 ||
+        payload.fixedCode.length > 100_000 ||
+        payload.fixedCode === originalCode
+      ) {
+        throw new Error("The remediation service returned an invalid code patch.");
+      }
+
+      if (
+        useAuditStore.getState().code !== originalCode ||
+        activeFileRef.current?.path !== filePath
+      ) {
+        throw new Error(
+          "The open file changed while the patch was being generated. Run the audit again before requesting another patch.",
+        );
+      }
+
+      setPatchReview({
+        originalCode,
+        modifiedCode: payload.fixedCode,
+        filePath,
+        language: activeFile.language,
+      });
+      setIsPatchReviewOpen(true);
+    } catch (error) {
+      console.error("Could not generate a secure remediation:", error);
+      setNotice({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "Could not generate a secure remediation.",
+      });
+    } finally {
+      setIsGeneratingFix(false);
+    }
+  }
+
+  function acceptPatch(modifiedCode: string) {
+    if (!patchReview) return;
+    if (
+      modifiedCode !== patchReview.modifiedCode ||
+      useAuditStore.getState().code !== patchReview.originalCode ||
+      activeFileRef.current?.path !== patchReview.filePath
+    ) {
+      setIsPatchReviewOpen(false);
+      setNotice({
+        kind: "error",
+        message: "The source changed after this patch was generated. The patch was not applied.",
+      });
+      return;
+    }
+
+    setCode(modifiedCode);
+    clearFindings();
+    setLatestAuditReport(null);
+    setIsPatchReviewOpen(false);
+    setNotice({ kind: "info", message: "Patch applied to the editor. Review and save the file manually." });
   }
 
   async function loadRepositoryFile(
@@ -281,6 +401,7 @@ export function Workspace() {
       const tree = await readApiResponse(treeResponse, isRepositoryTree);
       setRepository(tree);
       setActiveFile(null);
+      clearFindings();
       setCode(welcomeCode);
       setSavedCode(welcomeCode);
 
@@ -419,13 +540,14 @@ export function Workspace() {
       <SplitPaneLayout
         dashboard={
           <AuditPanel
-            key={latestAuditReport?.id ?? "audit-dashboard"}
             code={code}
             fileName={activeFile?.name ?? null}
             isRunning={isRunningAudit}
             language={activeFile?.language ?? "plaintext"}
             latestReport={latestAuditReport}
             onRunAudit={() => void runAudit()}
+            onRequestFix={(finding) => void requestFix(finding)}
+            isGeneratingFix={isGeneratingFix}
             refreshToken={auditRefreshToken}
           />
         }
@@ -475,11 +597,14 @@ export function Workspace() {
                 ) : (
                   <CodeViewer
                     code={code}
+                    findings={findings}
                     language={activeFile?.language ?? "typescript"}
                     onChange={setCode}
                     onEditorMount={(instance) => {
                       editorRef.current = instance;
                     }}
+                    selectedIssueIndex={selectedIssueIndex}
+                    severityFilter={severityFilter}
                     theme={theme}
                   />
                 )}
@@ -491,6 +616,17 @@ export function Workspace() {
       />
 
       {isDraggingFiles ? <div className="drag-overlay">Drop source files to open them</div> : null}
+      {patchReview ? (
+        <DiffViewerModal
+          isOpen={isPatchReviewOpen}
+          language={patchReview.language}
+          modifiedCode={patchReview.modifiedCode}
+          onAccept={acceptPatch}
+          onClose={() => setIsPatchReviewOpen(false)}
+          originalCode={patchReview.originalCode}
+          theme={theme}
+        />
+      ) : null}
     </main>
   );
 }

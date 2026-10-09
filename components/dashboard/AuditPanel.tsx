@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   Play,
   ShieldCheck,
+  Wrench,
 } from "lucide-react";
 import {
   AuditHistoryItemSchema,
@@ -16,6 +17,10 @@ import {
   type AuditHistoryItem,
   type StoredAuditReport,
 } from "@/lib/ai/schema";
+import {
+  type SeverityFilter,
+  useAuditStore,
+} from "@/lib/state/auditStore";
 
 interface AuditPanelProps {
   fileName: string | null;
@@ -25,6 +30,8 @@ interface AuditPanelProps {
   refreshToken: number;
   latestReport: StoredAuditReport | null;
   onRunAudit: () => void;
+  onRequestFix: (finding: StoredAuditReport["vulnerabilities"][number]) => void;
+  isGeneratingFix: boolean;
 }
 
 function formatDate(date: string): string {
@@ -42,9 +49,20 @@ export function AuditPanel({
   refreshToken,
   latestReport,
   onRunAudit,
+  onRequestFix,
+  isGeneratingFix,
 }: AuditPanelProps) {
+  const findingsReportId = useAuditStore((state) => state.findingsReportId);
+  const severityFilter = useAuditStore((state) => state.severityFilter);
+  const selectedIssueIndex = useAuditStore((state) => state.selectedIssueIndex);
+  const setSeverityFilter = useAuditStore((state) => state.setSeverityFilter);
+  const selectIssue = useAuditStore((state) => state.selectIssue);
+  const clearFindings = useAuditStore((state) => state.clearFindings);
   const [reports, setReports] = useState<AuditHistoryItem[]>([]);
-  const [selectedReport, setSelectedReport] = useState<StoredAuditReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<{
+    report: StoredAuditReport;
+    latestReportId: string | null;
+  } | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [isLoadingReport, setIsLoadingReport] = useState(false);
@@ -119,7 +137,11 @@ export function AuditPanel({
       if (!parsedReport.success) {
         throw new Error("The audit report service returned an invalid response.");
       }
-      setSelectedReport(parsedReport.data);
+      setSelectedReport({
+        report: parsedReport.data,
+        latestReportId: latestReport?.id ?? null,
+      });
+      clearFindings();
     } catch (error) {
       setHistoryError(
         error instanceof Error ? error.message : "The audit report could not be loaded.",
@@ -129,7 +151,30 @@ export function AuditPanel({
     }
   }
 
-  const report = selectedReport ?? latestReport;
+  const activeSelectedReport =
+    selectedReport?.latestReportId === (latestReport?.id ?? null)
+      ? selectedReport.report
+      : null;
+  const report = activeSelectedReport ?? latestReport;
+  const canNavigateToFinding =
+    report !== null &&
+    activeSelectedReport === null &&
+    findingsReportId === report.id;
+  const severityFilters: { label: string; value: SeverityFilter }[] = [
+    { label: "All", value: "ALL" },
+    { label: "Critical", value: "CRITICAL" },
+    { label: "High", value: "HIGH" },
+    { label: "Medium", value: "MEDIUM" },
+    { label: "Low", value: "LOW" },
+    { label: "Info", value: "INFO" },
+  ];
+  const visibleFindings =
+    report?.vulnerabilities
+      .map((finding, index) => ({ finding, index }))
+      .filter(
+        ({ finding }) =>
+          severityFilter === "ALL" || finding.severity === severityFilter,
+      ) ?? [];
 
   return (
     <aside aria-label="Security audit dashboard" className="dashboard">
@@ -138,7 +183,7 @@ export function AuditPanel({
           <ShieldCheck aria-hidden="true" size={17} />
           Security overview
         </h1>
-        <span className="phase-badge">Audit · Phase 2</span>
+        <span className="phase-badge">Audit · Ready</span>
       </div>
 
       <div className="dashboard-content">
@@ -203,28 +248,91 @@ export function AuditPanel({
               <span className="severity-count severity-low">
                 Low {report.summary.lowCount}
               </span>
+              <span className="severity-count">
+                Info {report.summary.infoCount}
+              </span>
             </div>
             {report.vulnerabilities.length === 0 ? (
               <p className="history-empty">No findings were reported for this file.</p>
             ) : (
-              <div className="finding-list">
-                {report.vulnerabilities.map((finding) => (
-                  <article className="finding-item" key={finding.id}>
-                    <div className="finding-item-heading">
-                      <span className={`severity-mark severity-mark-${finding.severity.toLowerCase()}`} />
-                      <h3>{finding.title}</h3>
-                    </div>
-                    <p className="finding-meta">
-                      {finding.severity} · {finding.cwe || "CWE not specified"} · Lines{" "}
-                      {finding.lineStart}–{finding.lineEnd}
-                    </p>
-                    <p>{finding.description}</p>
-                    <p className="finding-recommendation">
-                      <strong>Recommendation:</strong> {finding.recommendation}
-                    </p>
-                  </article>
-                ))}
-              </div>
+              <>
+                <div aria-label="Filter findings by severity" className="finding-filters">
+                  {severityFilters.map((filter) => (
+                    <button
+                      aria-pressed={severityFilter === filter.value}
+                      className="finding-filter"
+                      key={filter.value}
+                      onClick={() => setSeverityFilter(filter.value)}
+                      type="button"
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+                {visibleFindings.length === 0 ? (
+                  <p className="history-empty">No findings match this severity filter.</p>
+                ) : (
+                  <div className="finding-list">
+                    {visibleFindings.map(({ finding, index }) => (
+                      <article
+                        className={`finding-item${selectedIssueIndex === index && canNavigateToFinding ? " finding-item-selected" : ""}`}
+                        key={`${finding.id}-${index}`}
+                      >
+                        <div className="finding-item-heading">
+                          <span className={`severity-mark severity-mark-${finding.severity.toLowerCase()}`} />
+                          <h3>
+                            <button
+                              aria-pressed={
+                                canNavigateToFinding
+                                  ? selectedIssueIndex === index
+                                  : undefined
+                              }
+                              className="finding-select"
+                              disabled={!canNavigateToFinding}
+                              onClick={() =>
+                                selectIssue(
+                                  selectedIssueIndex === index ? null : index,
+                                )
+                              }
+                              type="button"
+                            >
+                              {finding.title}
+                            </button>
+                          </h3>
+                        </div>
+                        <p className="finding-meta">
+                          {finding.severity} · {finding.cwe || "CWE not specified"} · Lines{" "}
+                          {finding.lineStart}–{finding.lineEnd}
+                          {canNavigateToFinding ? " · Show in editor" : ""}
+                        </p>
+                        <p>{finding.description}</p>
+                        <p className="finding-recommendation">
+                          <strong>Recommendation:</strong> {finding.recommendation}
+                        </p>
+                        {canNavigateToFinding ? (
+                          <button
+                            className="button button-primary finding-fix-button"
+                            disabled={isGeneratingFix}
+                            onClick={() => onRequestFix(finding)}
+                            type="button"
+                          >
+                            {isGeneratingFix ? (
+                              <LoaderCircle
+                                aria-hidden="true"
+                                className="animate-spin"
+                                size={13}
+                              />
+                            ) : (
+                              <Wrench aria-hidden="true" size={13} />
+                            )}
+                            {isGeneratingFix ? "Preparing patch..." : "Suggest secure fix"}
+                          </button>
+                        ) : null}
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </section>
         ) : (

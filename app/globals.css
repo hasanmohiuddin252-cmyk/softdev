@@ -729,9 +729,39 @@ input:focus-visible {
   margin-top: 15px;
 }
 
+.finding-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.finding-filter {
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+}
+
+.finding-filter[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .finding-item {
   padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+
+.finding-item-selected {
+  border-radius: 6px;
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 6px var(--accent-soft);
 }
 
 .finding-item-heading {
@@ -744,6 +774,106 @@ input:focus-visible {
   margin: 0;
   font-size: 11px;
   line-height: 1.45;
+}
+
+.finding-select {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.finding-select:disabled {
+  cursor: default;
+}
+
+.finding-select:not(:disabled):hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.finding-select:focus-visible,
+.finding-filter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.monaco-editor .finding-line-critical {
+  background: color-mix(in srgb, #e34d59 13%, transparent);
+}
+
+.monaco-editor .finding-line-high {
+  background: color-mix(in srgb, #e9823b 13%, transparent);
+}
+
+.monaco-editor .finding-line-medium {
+  background: color-mix(in srgb, #d9a329 13%, transparent);
+}
+
+.monaco-editor .finding-line-low {
+  background: color-mix(in srgb, #3b9b75 13%, transparent);
+}
+
+.monaco-editor .finding-line-info {
+  background: color-mix(in srgb, #5794d1 13%, transparent);
+}
+
+.monaco-editor .finding-line-selected {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.monaco-editor .finding-gutter-critical {
+  border-left: 3px solid #e34d59;
+}
+
+.monaco-editor .finding-gutter-high {
+  border-left: 3px solid #e9823b;
+}
+
+.monaco-editor .finding-gutter-medium {
+  border-left: 3px solid #d9a329;
+}
+
+.monaco-editor .finding-gutter-low {
+  border-left: 3px solid #3b9b75;
+}
+
+.monaco-editor .finding-gutter-info {
+  border-left: 3px solid #5794d1;
+}
+
+.monaco-editor .finding-glyph-critical,
+.monaco-editor .finding-glyph-high,
+.monaco-editor .finding-glyph-medium,
+.monaco-editor .finding-glyph-low,
+.monaco-editor .finding-glyph-info {
+  width: 7px !important;
+  height: 7px !important;
+  margin: 7px 5px;
+  border-radius: 50%;
+}
+
+.monaco-editor .finding-glyph-critical {
+  background: #e34d59;
+}
+
+.monaco-editor .finding-glyph-high {
+  background: #e9823b;
+}
+
+.monaco-editor .finding-glyph-medium {
+  background: #d9a329;
+}
+
+.monaco-editor .finding-glyph-low {
+  background: #3b9b75;
+}
+
+.monaco-editor .finding-glyph-info {
+  background: #5794d1;
 }
 
 .severity-mark {
@@ -781,6 +911,108 @@ input:focus-visible {
   padding: 8px;
   border-radius: 6px;
   background: var(--surface-raised);
+}
+
+.finding-fix-button {
+  min-height: 31px;
+  margin-top: 9px;
+  font-size: 10px;
+}
+
+.diff-modal-backdrop {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(3 8 15 / 76%);
+  backdrop-filter: blur(4px);
+}
+
+.diff-modal {
+  display: flex;
+  width: min(1280px, 100%);
+  height: min(850px, 88dvh);
+  min-height: 360px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.diff-modal-header,
+.diff-modal-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 18px;
+  background: var(--surface);
+}
+
+.diff-modal-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.diff-modal-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.diff-modal-header p,
+.diff-modal-footer p {
+  margin: 5px 0 0;
+  color: var(--text-subtle);
+  font-size: 10px;
+}
+
+.diff-close-button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.diff-editor {
+  min-height: 0;
+  flex: 1;
+  background: var(--editor-background);
+}
+
+.diff-modal-footer {
+  border-top: 1px solid var(--border);
+}
+
+.diff-modal-footer > div {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.diff-discard-button {
+  min-height: 36px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.diff-accept-button {
+  min-height: 36px;
+}
+
+.diff-accept-button svg {
+  margin-right: 5px;
+  vertical-align: middle;
 }
 
 .history-card {
@@ -988,6 +1220,33 @@ input:focus-visible {
 }
 
 @media (max-width: 560px) {
+  .diff-modal-backdrop {
+    padding: 8px;
+  }
+
+  .diff-modal {
+    height: 92dvh;
+  }
+
+  .diff-modal-header,
+  .diff-modal-footer {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .diff-modal-footer {
+    flex-direction: column;
+  }
+
+  .diff-modal-footer > div {
+    width: 100%;
+  }
+
+  .diff-modal-footer .button {
+    flex: 1;
+    justify-content: center;
+  }
+
   .brand {
     min-width: 0;
   }

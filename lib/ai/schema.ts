@@ -23,6 +23,12 @@ export const AuditFindingsSchema = z
   })
   .strict();
 
+export const FixOutputSchema = z
+  .object({
+    fixedCode: z.string().min(1),
+  })
+  .strict();
+
 export const AuditOutputSchema = z
   .object({
     summary: z
